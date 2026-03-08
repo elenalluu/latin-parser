@@ -969,9 +969,6 @@
       popLemma.textContent = entry.lemma || rawWord;
       popGen.textContent   = entry.gen ? ',\u00a0' + entry.gen : '';
       popPos.textContent   = entry.pos || '';
-      popDef.textContent   = entry.def || '(no definition)';
-      popDef.classList.remove('not-found');
-
       const lsWord = encodeURIComponent(entry.lemma || normWord);
       popLS.href = `https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0059:entry=${lsWord}`;
       popLS.style.display = '';
@@ -979,15 +976,17 @@
       popLemma.textContent = rawWord;
       popGen.textContent   = '';
       popPos.textContent   = '';
-      popDef.classList.add('not-found');
       popLS.style.display  = 'none';
-      const frame = document.createElement('iframe');
-      frame.id  = 'popup-logeion-frame';
-      frame.src = `https://logeion.uchicago.edu/${encodeURIComponent(normWord)}`;
-      frame.title = 'Logeion entry';
-      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-      popDef.appendChild(frame);
     }
+
+    popDef.innerHTML = '';
+    popDef.classList.remove('not-found');
+    const frame = document.createElement('iframe');
+    frame.id  = 'popup-logeion-frame';
+    frame.src = `https://logeion.uchicago.edu/${encodeURIComponent(entry ? entry.lemma || normWord : normWord)}`;
+    frame.title = 'Logeion entry';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+    popDef.appendChild(frame);
 
     popLog.href = `https://logeion.uchicago.edu/${encodeURIComponent(normWord)}`;
 
