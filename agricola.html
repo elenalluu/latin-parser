@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="la">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agricola · De ortu et causis subterraneorum</title>
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #fdf6e3;
+      --text:        #2c1810;
+      --muted:       #7a5c3a;
+      --accent:      #8b6914;
+      --hover-line:  #c8a050;
+      --active-bg:   #fff3b0;
+      --popup-bg:    #fff8f0;
+      --popup-bdr:   #8b6914;
+      --link:        #5a3e00;
+      --rule:        #d4b896;
+      --nav-bg:      #f5ead0;
+    }
+
+    html { font-size: 18px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.85;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    #site-header {
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--rule);
+      padding: 1.5rem 2rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #site-header h1 {
+      font-size: 1.15rem;
+      font-weight: normal;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+
+    #site-header .meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    #chapter-nav {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.7rem;
+    }
+
+    #chapter-nav button {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.55rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #chapter-nav button:hover,
+    #chapter-nav button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Main Content ────────────────────────────────────────── */
+    #content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+    }
+
+    .chapter {
+      margin-bottom: 3.5rem;
+    }
+
+    .chapter-title {
+      font-size: 1rem;
+      font-variant: small-caps;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    p {
+      margin-bottom: 1.1em;
+      text-indent: 1.5em;
+    }
+
+    p:first-of-type { text-indent: 0; }
+
+    /* ── Clickable Words ─────────────────────────────────────── */
+    .word {
+      cursor: pointer;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.1s;
+      border-radius: 1px;
+    }
+
+    .word:hover {
+      border-bottom-color: var(--hover-line);
+    }
+
+    .word.active {
+      background: var(--active-bg);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Tooltip Popup ───────────────────────────────────────── */
+    #popup {
+      position: absolute;
+      z-index: 1000;
+      width: 320px;
+      max-width: calc(100vw - 24px);
+      background: var(--popup-bg);
+      border: 1px solid var(--popup-bdr);
+      border-radius: 5px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+      display: none;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    #popup.visible { display: block; }
+
+    #popup-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0.55rem 0.75rem 0.4rem;
+      border-bottom: 1px solid var(--rule);
+      gap: 0.5rem;
+    }
+
+    #popup-lemma {
+      font-weight: bold;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    #popup-gen {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-left: 0.2rem;
+    }
+
+    #popup-pos {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-style: italic;
+      flex-shrink: 0;
+    }
+
+    #popup-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 0 0 0.4rem;
+      flex-shrink: 0;
+    }
+
+    #popup-close:hover { color: var(--text); }
+
+    #popup-def {
+      padding: 0.55rem 0.75rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    #popup-def.not-found {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    #popup-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.78rem;
+    }
+
+    #popup-footer a {
+      color: var(--link);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    #popup-footer a:hover { border-bottom-color: var(--accent); }
+
+    /* ── Loading / Error States ──────────────────────────────── */
+    #loading-msg {
+      text-align: center;
+      color: var(--muted);
+      padding: 4rem 1rem;
+      font-style: italic;
+    }
+
+    #error-banner {
+      background: #fff0f0;
+      border: 1px solid #e8a0a0;
+      border-radius: 4px;
+      color: #8b0000;
+      display: none;
+      font-size: 0.85rem;
+      margin: 1rem auto;
+      max-width: 720px;
+      padding: 0.8rem 1rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      html { font-size: 16px; }
+      #content { padding: 1.5rem 1rem 4rem; }
+      #popup { width: calc(100vw - 24px); }
+    }
+
+    /* ── Print ───────────────────────────────────────────────── */
+    @media print {
+      #site-header, #popup { display: none !important; }
+      .word { cursor: text; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="site-header">
+  <h1>Georgius Agricola &mdash; <em>De ortu &amp; causis subterraneorum</em></h1>
+  <div class="meta">Basileae, 1558 &bull; Click any word for dictionary lookup</div>
+  <nav id="chapter-nav" aria-label="Chapters"></nav>
+</header>
+
+<!-- ── Error Banner ── -->
+<div id="error-banner"></div>
+
+<!-- ── Main Text ── -->
+<main id="content">
+  <div id="loading-msg">Loading text&hellip;</div>
+  <div id="text-body"></div>
+</main>
+
+<!-- ── Popup Tooltip ── -->
+<div id="popup" role="tooltip" aria-live="polite" aria-atomic="true">
+  <div id="popup-header">
+    <span>
+      <span id="popup-lemma"></span><span id="popup-gen"></span>
+    </span>
+    <span id="popup-pos"></span>
+    <button id="popup-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="popup-def"></div>
+  <div id="popup-footer">
+    <a id="popup-ls-link" href="#" target="_blank" rel="noopener">Lewis &amp; Short</a>
+    <a id="popup-logeion-link" href="#" target="_blank" rel="noopener">Logeion &#8599;</a>
+  </div>
+</div>
+
+<!-- ── Dictionary (must be built first via scripts/build_dict.py) ── -->
+<script>
+// Inline fallback: a small seed dictionary used when dict.js is absent.
+// The full dict.js replaces/extends this.
+window.LATIN_DICT_FALLBACK = {
+  "terra":    { lemma:"terra",    pos:"n. f.", gen:"-ae",   def:"earth, land, ground, soil; a country, region" },
+  "aqua":     { lemma:"aqua",     pos:"n. f.", gen:"-ae",   def:"water; a body of water, stream, sea; rain" },
+  "ignis":    { lemma:"ignis",    pos:"n. m.", gen:"-is",   def:"fire, flame; a firebrand; ardour, passion" },
+  "aer":      { lemma:"aer",      pos:"n. m.", gen:"aeris", def:"air, atmosphere; mist, fog; the lower air" },
+  "sum":      { lemma:"sum",      pos:"v.",    gen:"",       def:"to be, exist; to be present; to belong" },
+  "est":      { lemma:"sum",      pos:"v.",    gen:"",       def:"(3rd sg. pres.) is, exists" },
+  "sunt":     { lemma:"sum",      pos:"v.",    gen:"",       def:"(3rd pl. pres.) are, exist" },
+  "et":       { lemma:"et",       pos:"conj.", gen:"",       def:"and; also, even; both…and" },
+  "in":       { lemma:"in",       pos:"prep.", gen:"",       def:"in, on (+ abl.); into, onto, against (+ acc.)" },
+  "de":       { lemma:"de",       pos:"prep.", gen:"",       def:"from, down from; about, concerning (+ abl.)" },
+  "ex":       { lemma:"ex",       pos:"prep.", gen:"",       def:"out of, from; after; according to (+ abl.)" },
+  "qui":      { lemma:"qui",      pos:"pron.", gen:"",       def:"who, which, that (relative/interrogative)" },
+  "quod":     { lemma:"qui",      pos:"pron.", gen:"",       def:"which, that (neut. rel. pron.)" },
+  "quae":     { lemma:"qui",      pos:"pron.", gen:"",       def:"who, which (fem./neut. pl. rel. pron.)" },
+  "sed":      { lemma:"sed",      pos:"conj.", gen:"",       def:"but, however, yet; but also" },
+  "non":      { lemma:"non",      pos:"adv.",  gen:"",       def:"not" },
+  "enim":     { lemma:"enim",     pos:"conj.", gen:"",       def:"for, indeed, truly; in fact (postpositive)" },
+  "autem":    { lemma:"autem",    pos:"conj.", gen:"",       def:"but, however, moreover (postpositive)" },
+  "aut":      { lemma:"aut",      pos:"conj.", gen:"",       def:"or; either…or" },
+  "vero":     { lemma:"vero",     pos:"adv.",  gen:"",       def:"in truth, indeed, certainly; but in fact" },
+  "sub":      { lemma:"sub",      pos:"prep.", gen:"",       def:"under, beneath; near, at; just before (+ abl./acc.)" },
+  "ad":       { lemma:"ad",       pos:"prep.", gen:"",       def:"to, toward; at, near; for, in order to (+ acc.)" },
+  "cum":      { lemma:"cum",      pos:"prep.", gen:"",       def:"with (+ abl.); when, since, although (conj.)" },
+  "per":      { lemma:"per",      pos:"prep.", gen:"",       def:"through, by means of; throughout; during (+ acc.)" },
+  "vena":     { lemma:"vena",     pos:"n. f.", gen:"-ae",    def:"a vein of ore; blood-vessel; a stream, channel" },
+  "metallum": { lemma:"metallum", pos:"n. n.", gen:"-i",     def:"a metal; a mine, quarry; metallic ore" },
+  "lapis":    { lemma:"lapis",    pos:"n. m.", gen:"-idis",  def:"a stone, rock; a milestone; gemstone; marble" },
+  "sulphur":  { lemma:"sulphur",  pos:"n. n.", gen:"-uris",  def:"sulphur, brimstone; a sulphurous flame" },
+  "vapor":    { lemma:"vapor",    pos:"n. m.", gen:"-oris",  def:"steam, vapour, exhalation; warmth, heat" },
+  "spiritus": { lemma:"spiritus", pos:"n. m.", gen:"-us",    def:"breath, breathing; air; spirit, soul; inspiration" },
+  "subterraneus": { lemma:"subterraneus", pos:"adj.", gen:"-a, -um", def:"underground, subterranean" },
+  "ferrum":   { lemma:"ferrum",   pos:"n. n.", gen:"-i",     def:"iron; any iron implement: sword, ploughshare, chisel" },
+  "aurum":    { lemma:"aurum",    pos:"n. n.", gen:"-i",     def:"gold; gold coin; anything made of gold" },
+  "argentum": { lemma:"argentum", pos:"n. n.", gen:"-i",     def:"silver; silver coin, money; silverware" },
+  "sal":      { lemma:"sal",      pos:"n. m.", gen:"salis",  def:"salt; brine; sea-water; wit, smartness" },
+  "fossa":    { lemma:"fossa",    pos:"n. f.", gen:"-ae",    def:"a ditch, trench, channel, pit; an excavation" },
+};
+</script>
+<script src="dict.js" onerror="window._dictError=true"></script>
+<script src="text.js" onerror="window._textError=true"></script>
+
+<!-- ── Application Logic ── -->
+<script>
+(function () {
+  'use strict';
+
+  // ── Dictionary ─────────────────────────────────────────────────────────────
+
+  // Merge fallback into LATIN_DICT if the full dict wasn't loaded
+  const DICT = (typeof LATIN_DICT !== 'undefined')
+    ? LATIN_DICT
+    : window.LATIN_DICT_FALLBACK;
+
+  if (typeof LATIN_DICT === 'undefined' && typeof window._dictError !== 'undefined') {
+    showError('dict.js not found — using built-in seed dictionary. Run <code>python scripts/build_dict.py</code> to build the full dictionary.');
+  }
+
+  // ── Text ───────────────────────────────────────────────────────────────────
+
+  const TEXT = (typeof LATIN_TEXT !== 'undefined') ? LATIN_TEXT : null;
+
+  // Built-in sample used as last resort (also matches extract_text.py sample)
+  const SAMPLE_TEXT = {
+    title: "De ortu et causis subterraneorum",
+    author: "Georgius Agricola",
+    year: 1546,
+    edition: "Basileae, 1558 (Froben)",
+    chapters: [
+      {
+        id: "liber1", title: "Liber Primus",
+        paragraphs: [
+          "Quaestio de subterraneis rebus est obscura et difficilis: quamobrem multi philosophi de ea disseruerunt, sed parum inter se consentiunt.",
+          "Dicunt enim alii subterranea omnia ex aqua esse composita, ut Thales; alii ex igne, ut Heraclitus; alii ex utroque, ut Empedocles; alii ex aere, aqua, igne, terra, ut Aristoteles.",
+          "Nos autem, omissa philosophorum contentione, rem ipsam consideremus, et quae de subterraneis rebus tradita sunt a veteribus, ea cum iis quae nos ipsi observavimus, conferamus.",
+          "Subterranea autem dicimus ea quae sub terra sint, sive ea sint solida, ut metalla et lapides, sive liquida, ut aquae et oleum, sive spiritus, ut vapores et exhalationes.",
+          "Terra enim ipsa multa in se continet: venas metallorum, fontes aquarum, meatus spirituum. Haec omnia sub terra latent, et a nobis diligenter investiganda sunt.",
+        ]
+      },
+      {
+        id: "liber2", title: "Liber Secundus",
+        paragraphs: [
+          "De aquis subterraneis multa dicenda sunt. Aqua enim in terra multiplici modo latet: partim in fontibus, partim in puteis, partim in fluminibus subterraneis.",
+          "Fontes nascuntur ex aquis pluvialibus quae in terram penetrant, et ibi per venas lapideas fluunt, donec in superficie terrae erumpant.",
+          "Aquae subterraneae calidae sunt plerumque propter ignem subterraneum, qui in multis locis sub terra latet, praesertim ubi sulphur aut bitumen inveniuntur.",
+          "Sal quoque ex aqua subterranea fit: cum enim aqua salsa ex terra manat, et sole siccatur, sal remanet.",
+        ]
+      },
+      {
+        id: "liber3", title: "Liber Tertius",
+        paragraphs: [
+          "Vapores et exhalationes ex terra oriuntur multipliciter. Est enim in terra vis quaedam caloris, quae humores in vapores convertit.",
+          "Vapor autem est humidus et calidus; exhalatio vero est sicca et calida. Haec distinctio ab Aristotele tradita est, et vera esse videtur.",
+          "Ex vaporibus fiunt nubes et pluviae; ex exhalationibus vero fiunt venti et fulmina et alia meteora.",
+          "Spiritus autem subterraneus, qui per angustos meatus terrae fluit, vim habet metallorum venas dissolvendi et in alias partes transferendi.",
+        ]
+      },
+    ]
+  };
+
+  const textData = TEXT || SAMPLE_TEXT;
+  if (!TEXT && typeof window._textError !== 'undefined') {
+    showError('text.js not found — showing sample Latin text. Run <code>python scripts/extract_text.py</code> to extract the full Agricola text.');
+  }
+
+  // ── Normalisation ──────────────────────────────────────────────────────────
+
+  /**
+   * Normalise a Latin word for dictionary lookup.
+   * Strips punctuation, lowercases, applies classical orthography rules.
+   */
+  function normalize(word) {
+    let w = word.toLowerCase();
+    // Strip leading/trailing punctuation
+    w = w.replace(/^[^a-zæœ]+|[^a-zæœ]+$/gi, '');
+    // Classical normalisation: j→i, v→u
+    w = w.replace(/j/g, 'i').replace(/v/g, 'u');
+    // Ligatures
+    w = w.replace(/æ/g, 'ae').replace(/œ/g, 'oe');
+    // Remove diacritics (macrons, etc.)
+    w = w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return w;
+  }
+
+  // ── Suffix-stripping ───────────────────────────────────────────────────────
+
+  // Ordered from longest to shortest to avoid over-stripping
+  const SUFFIXES = [
+    // Noun/adj endings
+    'arum', 'orum', 'ibus', 'ium',
+    'em', 'am', 'um', 'is', 'ae', 'os', 'as',
+    'o', 'i', 'e', 'a',
+    // Verb endings
+    'atur', 'untur', 'itur', 'unt', 'ant', 'ent',
+    'tur', 'mus', 'tis', 'nt',
+    'it', 'at', 'et',
+    // Adjectival
+    'issimus', 'issima', 'issimum', 'ior', 'ius',
+    // Adverb
+    'iter', 'ter',
+  ];
+
+  /**
+   * Dictionary lookup with suffix-stripping fallback.
+   * Returns a dict entry object, or null.
+   */
+  function lookup(rawWord) {
+    const norm = normalize(rawWord);
+    if (!norm) return null;
+
+    // 1. Direct hit
+    if (DICT[norm]) return DICT[norm];
+
+    // 2. Suffix stripping
+    for (const suf of SUFFIXES) {
+      if (norm.endsWith(suf) && norm.length - suf.length >= 3) {
+        const stem = norm.slice(0, norm.length - suf.length);
+        if (DICT[stem]) return DICT[stem];
+
+        // Try re-adding 'a' (1st decl stem recovery: terr- → terra)
+        if (DICT[stem + 'a']) return DICT[stem + 'a'];
+        // 2nd decl: vit- → vita; us/um stems
+        if (DICT[stem + 'us']) return DICT[stem + 'us'];
+        if (DICT[stem + 'um']) return DICT[stem + 'um'];
+        if (DICT[stem + 'is']) return DICT[stem + 'is'];
+      }
+    }
+
+    return null;
+  }
+
+  // ── Tokeniser ──────────────────────────────────────────────────────────────
+
+  /**
+   * Tokenise a Latin string into word and non-word tokens.
+   * Returns array of {type: 'word'|'punct', value: string}.
+   */
+  function tokenize(str) {
+    const tokens = [];
+    // Split on word boundaries, keeping separators
+    const parts = str.split(/([A-Za-zæœÆŒ\u00C0-\u024F]+)/);
+    for (const part of parts) {
+      if (!part) continue;
+      if (/[A-Za-zæœÆŒ\u00C0-\u024F]/.test(part)) {
+        tokens.push({ type: 'word', value: part });
+      } else {
+        tokens.push({ type: 'punct', value: part });
+      }
+    }
+    return tokens;
+  }
+
+  // ── DOM Building ───────────────────────────────────────────────────────────
+
+  const textBody = document.getElementById('text-body');
+  const chapterNav = document.getElementById('chapter-nav');
+  const loadingMsg = document.getElementById('loading-msg');
+
+  function buildDOM() {
+    loadingMsg.style.display = 'none';
+    textBody.innerHTML = '';
+    chapterNav.innerHTML = '';
+
+    const chapters = textData.chapters || [];
+
+    chapters.forEach((chapter, idx) => {
+      // Nav button — prefix with opus number for repeated Liber titles
+      const btn = document.createElement('button');
+      const opusMatch = chapter.id.match(/^opus(\d+)_/);
+      const opusPrefix = opusMatch ? `[${opusMatch[1]}] ` : '';
+      btn.textContent = opusPrefix + chapter.title;
+      btn.dataset.chapterId = chapter.id;
+      btn.addEventListener('click', () => {
+        document.getElementById('ch-' + chapter.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      chapterNav.appendChild(btn);
+
+      // Chapter section
+      const section = document.createElement('section');
+      section.className = 'chapter';
+      section.id = 'ch-' + chapter.id;
+
+      const heading = document.createElement('h2');
+      heading.className = 'chapter-title';
+      heading.textContent = chapter.title;
+      section.appendChild(heading);
+
+      (chapter.paragraphs || []).forEach(paraText => {
+        const p = document.createElement('p');
+        const tokens = tokenize(paraText);
+        for (const tok of tokens) {
+          if (tok.type === 'word') {
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.dataset.raw = tok.value;
+            span.textContent = tok.value;
+            p.appendChild(span);
+          } else {
+            p.appendChild(document.createTextNode(tok.value));
+          }
+        }
+        section.appendChild(p);
+      });
+
+      textBody.appendChild(section);
+    });
+
+    // Highlight active chapter in nav on scroll
+    setupScrollSpy(chapters);
+  }
+
+  // ── Scroll Spy ─────────────────────────────────────────────────────────────
+
+  function setupScrollSpy(chapters) {
+    if (!('IntersectionObserver' in window)) return;
+
+    const navBtns = {};
+    chapterNav.querySelectorAll('button').forEach(btn => {
+      navBtns[btn.dataset.chapterId] = btn;
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id.replace('ch-', '');
+          Object.values(navBtns).forEach(b => b.classList.remove('active'));
+          if (navBtns[id]) navBtns[id].classList.add('active');
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '-80px 0px 0px 0px' });
+
+    chapters.forEach(ch => {
+      const el = document.getElementById('ch-' + ch.id);
+      if (el) observer.observe(el);
+    });
+  }
+
+  // ── Popup ──────────────────────────────────────────────────────────────────
+
+  const popup     = document.getElementById('popup');
+  const popLemma  = document.getElementById('popup-lemma');
+  const popGen    = document.getElementById('popup-gen');
+  const popPos    = document.getElementById('popup-pos');
+  const popDef    = document.getElementById('popup-def');
+  const popLS     = document.getElementById('popup-ls-link');
+  const popLog    = document.getElementById('popup-logeion-link');
+  const popClose  = document.getElementById('popup-close');
+
+  let activeSpan = null;
+
+  function showPopup(entry, spanEl) {
+    // Update active word highlight
+    if (activeSpan) activeSpan.classList.remove('active');
+    activeSpan = spanEl;
+    spanEl.classList.add('active');
+
+    const rawWord = spanEl.dataset.raw;
+    const normWord = normalize(rawWord);
+
+    if (entry) {
+      popLemma.textContent = entry.lemma || rawWord;
+      popGen.textContent   = entry.gen ? ',\u00a0' + entry.gen : '';
+      popPos.textContent   = entry.pos || '';
+      popDef.textContent   = entry.def || '(no definition)';
+      popDef.classList.remove('not-found');
+
+      // Lewis & Short link (Tufts Perseus)
+      const lsWord = encodeURIComponent(entry.lemma || normWord);
+      popLS.href = `https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0059:entry=${lsWord}`;
+      popLS.style.display = '';
+    } else {
+      popLemma.textContent = rawWord;
+      popGen.textContent   = '';
+      popPos.textContent   = '';
+      popDef.textContent   = 'Not found in dictionary';
+      popDef.classList.add('not-found');
+      popLS.style.display = 'none';
+    }
+
+    popLog.href = `https://logeion.uchicago.edu/${encodeURIComponent(normWord)}`;
+
+    // Position popup
+    popup.classList.add('visible');
+    positionPopup(spanEl);
+  }
+
+  function positionPopup(spanEl) {
+    const rect     = spanEl.getBoundingClientRect();
+    const scrollY  = window.scrollY;
+    const scrollX  = window.scrollX;
+    const popH     = popup.offsetHeight;
+    const popW     = popup.offsetWidth;
+    const vw       = window.innerWidth;
+    const vh       = window.innerHeight;
+    const GAP      = 8;
+
+    // Default: below the word
+    let top  = rect.bottom + scrollY + GAP;
+    let left = rect.left + scrollX;
+
+    // Flip above if it would overflow the viewport bottom
+    if (rect.bottom + GAP + popH > vh) {
+      top = rect.top + scrollY - popH - GAP;
+    }
+
+    // Clamp left
+    left = Math.max(scrollX + 8, Math.min(left, scrollX + vw - popW - 8));
+
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  }
+
+  function hidePopup() {
+    popup.classList.remove('visible');
+    if (activeSpan) {
+      activeSpan.classList.remove('active');
+      activeSpan = null;
+    }
+  }
+
+  // ── Event Handling ─────────────────────────────────────────────────────────
+
+  // Event delegation on text body
+  textBody.addEventListener('click', handleClick);
+
+  function handleClick(e) {
+    if (!e.target.matches('.word')) return;
+    const span = e.target;
+    // Toggle off if clicking the same word
+    if (span === activeSpan) {
+      hidePopup();
+      return;
+    }
+    const rawWord = span.dataset.raw;
+    const entry = lookup(rawWord);
+    showPopup(entry, span);
+    e.stopPropagation();
+  }
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!popup.contains(e.target)) hidePopup();
+  });
+
+  // Close button
+  popClose.addEventListener('click', hidePopup);
+
+  // Keyboard: Escape closes, Tab moves to next word (basic a11y)
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hidePopup();
+  });
+
+  // Reposition popup on scroll/resize
+  window.addEventListener('scroll', () => {
+    if (activeSpan && popup.classList.contains('visible')) {
+      positionPopup(activeSpan);
+    }
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (activeSpan && popup.classList.contains('visible')) {
+      positionPopup(activeSpan);
+    }
+  });
+
+  // ── Error Banner ───────────────────────────────────────────────────────────
+
+  function showError(html) {
+    const banner = document.getElementById('error-banner');
+    banner.innerHTML = html;
+    banner.style.display = 'block';
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+
+  buildDOM();
+
+})();
+</script>
+</body>
+</html>

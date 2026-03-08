@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="la">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parser</title>
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #fdf6e3;
+      --text:        #2c1810;
+      --muted:       #7a5c3a;
+      --accent:      #8b6914;
+      --hover-line:  #c8a050;
+      --active-bg:   #fff3b0;
+      --popup-bg:    #fff8f0;
+      --popup-bdr:   #8b6914;
+      --link:        #5a3e00;
+      --rule:        #d4b896;
+      --nav-bg:      #f5ead0;
+    }
+
+    html { font-size: 18px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.85;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    #site-header {
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--rule);
+      padding: 1.5rem 2rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #header-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    #site-header h1 {
+      font-size: 1.15rem;
+      font-weight: normal;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+
+    #site-header .meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    #new-doc-btn {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+      display: none;
+    }
+
+    #new-doc-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    #chapter-nav {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.7rem;
+    }
+
+    #chapter-nav button {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.55rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #chapter-nav button:hover,
+    #chapter-nav button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Upload Zone ─────────────────────────────────────────── */
+    #upload-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 120px);
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    #drop-area {
+      border: 2px dashed var(--rule);
+      border-radius: 10px;
+      padding: 4rem 3rem;
+      max-width: 480px;
+      width: 100%;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    #drop-area:hover,
+    #drop-area.drag-over {
+      border-color: var(--accent);
+      background: rgba(139, 105, 20, 0.04);
+    }
+
+    #drop-area.drag-over {
+      background: rgba(139, 105, 20, 0.08);
+    }
+
+    #drop-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    #drop-label {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    #drop-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    #file-input { display: none; }
+
+    #browse-btn {
+      background: none;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.4rem 1.2rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #browse-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #upload-error {
+      margin-top: 1rem;
+      color: #8b0000;
+      font-size: 0.82rem;
+      font-style: italic;
+      min-height: 1.2em;
+    }
+
+    /* ── Main Content ────────────────────────────────────────── */
+    #content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+      display: none;
+    }
+
+    .chapter {
+      margin-bottom: 3.5rem;
+    }
+
+    .chapter-title {
+      font-size: 1rem;
+      font-variant: small-caps;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    p {
+      margin-bottom: 1.1em;
+      text-indent: 1.5em;
+    }
+
+    p:first-of-type { text-indent: 0; }
+
+    /* ── Clickable Words ─────────────────────────────────────── */
+    .word {
+      cursor: pointer;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.1s;
+      border-radius: 1px;
+    }
+
+    .word:hover {
+      border-bottom-color: var(--hover-line);
+    }
+
+    .word.active {
+      background: var(--active-bg);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Tooltip Popup ───────────────────────────────────────── */
+    #popup {
+      position: absolute;
+      z-index: 1000;
+      width: 320px;
+      max-width: calc(100vw - 24px);
+      background: var(--popup-bg);
+      border: 1px solid var(--popup-bdr);
+      border-radius: 5px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+      display: none;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    #popup.visible { display: block; }
+
+    #popup-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0.55rem 0.75rem 0.4rem;
+      border-bottom: 1px solid var(--rule);
+      gap: 0.5rem;
+    }
+
+    #popup-lemma {
+      font-weight: bold;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    #popup-gen {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-left: 0.2rem;
+    }
+
+    #popup-pos {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-style: italic;
+      flex-shrink: 0;
+    }
+
+    #popup-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 0 0 0.4rem;
+      flex-shrink: 0;
+    }
+
+    #popup-close:hover { color: var(--text); }
+
+    #popup-def {
+      padding: 0.55rem 0.75rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    #popup-def.not-found {
+      color: var(--muted);
+      font-style: italic;
+      padding: 0;
+    }
+
+    #popup-logeion-frame {
+      display: block;
+      width: 100%;
+      height: 260px;
+      border: none;
+      border-top: 1px solid var(--rule);
+    }
+
+    /* ── Morpho Section ──────────────────────────────────────── */
+    #popup-morpho {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid var(--rule);
+      font-size: 0.8rem;
+      min-height: 2rem;
+    }
+
+    .morpho-analysis {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .morpho-lemma {
+      font-weight: bold;
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+
+    .morpho-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    .morpho-tag {
+      background: var(--nav-bg);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 0.73rem;
+      padding: 0.05rem 0.35rem;
+    }
+
+    #popup-morpho-loading,
+    #popup-morpho-unavailable {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 0.78rem;
+    }
+
+    #popup-morpho-inner { display: none; }
+    #popup-morpho-loading { display: none; }
+    #popup-morpho-unavailable { display: none; }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    #popup-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.78rem;
+    }
+
+    #popup-footer a {
+      color: var(--link);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    #popup-footer a:hover { border-bottom-color: var(--accent); }
+
+    /* ── Error Banner ────────────────────────────────────────── */
+    #error-banner {
+      background: #fff0f0;
+      border: 1px solid #e8a0a0;
+      border-radius: 4px;
+      color: #8b0000;
+      display: none;
+      font-size: 0.85rem;
+      margin: 1rem auto;
+      max-width: 720px;
+      padding: 0.8rem 1rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      html { font-size: 16px; }
+      #content { padding: 1.5rem 1rem 4rem; }
+      #popup { width: calc(100vw - 24px); }
+      #drop-area { padding: 2.5rem 1.5rem; }
+    }
+
+    /* ── Suggestions ────────────────────────────────────────── */
+    .suggest-label   { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.3rem; }
+    .suggest-list    { display: flex; flex-direction: column; gap: 0.3rem; }
+    .suggest-item    {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem;
+      text-decoration: none; padding: 0.2rem 0.3rem; border-radius: 3px;
+      border: 1px solid transparent;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .suggest-item:hover { background: var(--active-bg); border-color: var(--rule); }
+    .suggest-lemma { font-weight: bold; color: var(--text); font-size: 0.88rem; }
+    .suggest-pos   { color: var(--muted); font-style: italic; font-size: 0.78rem; }
+    .suggest-def   { color: var(--text); font-size: 0.80rem; flex-basis: 100%; opacity: 0.85; }
+
+    /* ── Print ───────────────────────────────────────────────── */
+    @media print {
+      #site-header, #popup, #upload-zone { display: none !important; }
+      #content { display: block !important; }
+      .word { cursor: text; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="site-header">
+  <div id="header-top">
+    <h1 id="doc-title">Parser</h1>
+    <button id="new-doc-btn">New Document</button>
+  </div>
+  <div class="meta" id="doc-meta">Drop a .docx file to begin &bull; Click any word for dictionary &amp; morphology</div>
+  <nav id="chapter-nav" aria-label="Chapters"></nav>
+</header>
+
+<!-- ── Error Banner ── -->
+<div id="error-banner"></div>
+
+<!-- ── Upload Zone ── -->
+<div id="upload-zone">
+  <div id="drop-area" role="button" tabindex="0" aria-label="Drop zone for .docx files">
+    <div id="drop-icon">&#128196;</div>
+    <div id="drop-label">Drop a Word document here</div>
+    <div id="drop-sub">.docx files only</div>
+    <button id="browse-btn" type="button">Browse&hellip;</button>
+    <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <div id="upload-error" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- ── Main Text ── -->
+<main id="content">
+  <div id="text-body"></div>
+</main>
+
+<!-- ── Popup Tooltip ── -->
+<div id="popup" role="tooltip" aria-live="polite" aria-atomic="true">
+  <div id="popup-header">
+    <span>
+      <span id="popup-lemma"></span><span id="popup-gen"></span>
+    </span>
+    <span id="popup-pos"></span>
+    <button id="popup-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="popup-def"></div>
+  <div id="popup-morpho">
+    <div id="popup-morpho-inner"></div>
+    <div id="popup-morpho-loading">loading morphology&hellip;</div>
+    <div id="popup-morpho-unavailable">morphology unavailable</div>
+  </div>
+  <div id="popup-footer">
+    <a id="popup-ls-link" href="#" target="_blank" rel="noopener">Lewis &amp; Short</a>
+    <a id="popup-logeion-link" href="#" target="_blank" rel="noopener">Logeion &#8599;</a>
+  </div>
+</div>
+
+<!-- ── External Scripts ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"
+        onerror="window._mammothError=true"></script>
+<script src="dict.js" onerror="window._dictError=true"></script>
+
+<!-- ── Application Logic ── -->
+<script>
+(function () {
+  'use strict';
+
+  // ── Dictionary ─────────────────────────────────────────────────────────────
+
+  const DICT_FALLBACK = {
+    "terra":    { lemma:"terra",    pos:"n. f.", gen:"-ae",   def:"earth, land, ground, soil; a country, region" },
+    "aqua":     { lemma:"aqua",     pos:"n. f.", gen:"-ae",   def:"water; a body of water, stream, sea; rain" },
+    "ignis":    { lemma:"ignis",    pos:"n. m.", gen:"-is",   def:"fire, flame; a firebrand; ardour, passion" },
+    "aer":      { lemma:"aer",      pos:"n. m.", gen:"aeris", def:"air, atmosphere; mist, fog; the lower air" },
+    "sum":      { lemma:"sum",      pos:"v.",    gen:"",       def:"to be, exist; to be present; to belong" },
+    "est":      { lemma:"sum",      pos:"v.",    gen:"",       def:"(3rd sg. pres.) is, exists" },
+    "sunt":     { lemma:"sum",      pos:"v.",    gen:"",       def:"(3rd pl. pres.) are, exist" },
+    "et":       { lemma:"et",       pos:"conj.", gen:"",       def:"and; also, even; both…and" },
+    "in":       { lemma:"in",       pos:"prep.", gen:"",       def:"in, on (+ abl.); into, onto, against (+ acc.)" },
+    "de":       { lemma:"de",       pos:"prep.", gen:"",       def:"from, down from; about, concerning (+ abl.)" },
+    "ex":       { lemma:"ex",       pos:"prep.", gen:"",       def:"out of, from; after; according to (+ abl.)" },
+    "qui":      { lemma:"qui",      pos:"pron.", gen:"",       def:"who, which, that (relative/interrogative)" },
+    "quod":     { lemma:"qui",      pos:"pron.", gen:"",       def:"which, that (neut. rel. pron.)" },
+    "quae":     { lemma:"qui",      pos:"pron.", gen:"",       def:"who, which (fem./neut. pl. rel. pron.)" },
+    "sed":      { lemma:"sed",      pos:"conj.", gen:"",       def:"but, however, yet; but also" },
+    "non":      { lemma:"non",      pos:"adv.",  gen:"",       def:"not" },
+    "enim":     { lemma:"enim",     pos:"conj.", gen:"",       def:"for, indeed, truly; in fact (postpositive)" },
+    "autem":    { lemma:"autem",    pos:"conj.", gen:"",       def:"but, however, moreover (postpositive)" },
+    "aut":      { lemma:"aut",      pos:"conj.", gen:"",       def:"or; either…or" },
+    "vero":     { lemma:"vero",     pos:"adv.",  gen:"",       def:"in truth, indeed, certainly; but in fact" },
+    "sub":      { lemma:"sub",      pos:"prep.", gen:"",       def:"under, beneath; near, at; just before (+ abl./acc.)" },
+    "ad":       { lemma:"ad",       pos:"prep.", gen:"",       def:"to, toward; at, near; for, in order to (+ acc.)" },
+    "cum":      { lemma:"cum",      pos:"prep.", gen:"",       def:"with (+ abl.); when, since, although (conj.)" },
+    "per":      { lemma:"per",      pos:"prep.", gen:"",       def:"through, by means of; throughout; during (+ acc.)" },
+  };
+
+  const DICT = (typeof LATIN_DICT !== 'undefined') ? LATIN_DICT : DICT_FALLBACK;
+
+  // ── Suffix Stripping ───────────────────────────────────────────────────────
+
+  const SUFFIXES = [
+    'arum', 'orum', 'ibus', 'ium',
+    'em', 'am', 'um', 'is', 'ae', 'os', 'as',
+    'o', 'i', 'e', 'a',
+    'atur', 'untur', 'itur', 'unt', 'ant', 'ent',
+    'tur', 'mus', 'tis', 'nt',
+    'it', 'at', 'et',
+    'issimus', 'issima', 'issimum', 'ior', 'ius',
+    'iter', 'ter',
+  ];
+
+  // ── Normalisation ──────────────────────────────────────────────────────────
+
+  function normalize(word) {
+    let w = word.toLowerCase();
+    w = w.replace(/^[^a-zæœ]+|[^a-zæœ]+$/gi, '');
+    w = w.replace(/j/g, 'i').replace(/v/g, 'u');
+    w = w.replace(/æ/g, 'ae').replace(/œ/g, 'oe');
+    w = w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return w;
+  }
+
+  // ── Lookup ─────────────────────────────────────────────────────────────────
+
+  function lookup(rawWord) {
+    const norm = normalize(rawWord);
+    if (!norm) return null;
+
+    if (DICT[norm]) return DICT[norm];
+
+    for (const suf of SUFFIXES) {
+      if (norm.endsWith(suf) && norm.length - suf.length >= 3) {
+        const stem = norm.slice(0, norm.length - suf.length);
+        if (DICT[stem]) return DICT[stem];
+        if (DICT[stem + 'a']) return DICT[stem + 'a'];
+        if (DICT[stem + 'us']) return DICT[stem + 'us'];
+        if (DICT[stem + 'um']) return DICT[stem + 'um'];
+        if (DICT[stem + 'is']) return DICT[stem + 'is'];
+      }
+    }
+
+    return null;
+  }
+
+  // ── Spelling Match ─────────────────────────────────────────────────────────
+
+  function spellingMatch(normWord) {
+    if (!normWord) return [];
+
+    const scored = [];
+    for (const key of Object.keys(DICT)) {
+      let score = 0;
+      const len = Math.min(key.length, normWord.length);
+      for (let i = 0; i < len; i++) {
+        if (key[i] === normWord[i]) score++;
+        else break;
+      }
+      if (score > 0) scored.push({ key, score });
+    }
+
+    scored.sort((a, b) =>
+      b.score !== a.score
+        ? b.score - a.score
+        : Math.abs(a.key.length - normWord.length) - Math.abs(b.key.length - normWord.length)
+    );
+
+    const seen = new Set();
+    const results = [];
+    for (const { key } of scored) {
+      const entry = DICT[key];
+      const lemmaKey = entry.lemma || key;
+      if (seen.has(lemmaKey)) continue;
+      seen.add(lemmaKey);
+      results.push({ lemma: entry.lemma || key, pos: entry.pos || '', def: entry.def || '' });
+      if (results.length === 10) break;
+    }
+    return results;
+  }
+
+  // ── Tokeniser ──────────────────────────────────────────────────────────────
+
+  function tokenize(str) {
+    const tokens = [];
+    const parts = str.split(/([A-Za-zæœÆŒ\u00C0-\u024F]+)/);
+    for (const part of parts) {
+      if (!part) continue;
+      if (/[A-Za-zæœÆŒ\u00C0-\u024F]/.test(part)) {
+        tokens.push({ type: 'word', value: part });
+      } else {
+        tokens.push({ type: 'punct', value: part });
+      }
+    }
+    return tokens;
+  }
+
+  // ── Structure Extraction ───────────────────────────────────────────────────
+
+  function extractStructure(html, filename) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+
+    const chapters = [];
+    let current = null;
+    let chapterIdx = 0;
+
+    const docTitle = filename.replace(/\.docx$/i, '').replace(/[_-]/g, ' ');
+
+    function flushPara(text) {
+      const t = text.trim();
+      if (!t) return;
+      if (!current) {
+        current = { id: 'section' + (++chapterIdx), title: docTitle, paragraphs: [] };
+        chapters.push(current);
+      }
+      current.paragraphs.push(t);
+    }
+
+    for (const child of div.children) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+        current = { id: 'section' + (++chapterIdx), title: child.textContent.trim() || 'Section ' + chapterIdx, paragraphs: [] };
+        chapters.push(current);
+      } else if (tag === 'p' || tag === 'li') {
+        flushPara(child.textContent);
+      } else {
+        // Recurse one level for ul/ol
+        for (const sub of child.children) {
+          flushPara(sub.textContent);
+        }
+      }
+    }
+
+    // If no structure found at all, treat everything as one section
+    if (chapters.length === 0) {
+      chapters.push({ id: 'section1', title: docTitle, paragraphs: [div.textContent.trim()] });
+    }
+
+    // Filter chapters with no paragraphs (heading-only)
+    const filled = chapters.filter(ch => ch.paragraphs.length > 0);
+    return {
+      title: filled[0] ? (chapters[0].title || docTitle) : docTitle,
+      chapters: filled.length > 0 ? filled : chapters
+    };
+  }
+
+  // ── DOM Elements ───────────────────────────────────────────────────────────
+
+  const uploadZone   = document.getElementById('upload-zone');
+  const content      = document.getElementById('content');
+  const textBody     = document.getElementById('text-body');
+  const chapterNav   = document.getElementById('chapter-nav');
+  const docTitle     = document.getElementById('doc-title');
+  const docMeta      = document.getElementById('doc-meta');
+  const newDocBtn    = document.getElementById('new-doc-btn');
+  const dropArea     = document.getElementById('drop-area');
+  const fileInput    = document.getElementById('file-input');
+  const browseBtn    = document.getElementById('browse-btn');
+  const uploadError  = document.getElementById('upload-error');
+
+  // ── DOM Building ───────────────────────────────────────────────────────────
+
+  function buildDOM(textData) {
+    textBody.innerHTML = '';
+    chapterNav.innerHTML = '';
+
+    const chapters = textData.chapters || [];
+
+    chapters.forEach(chapter => {
+      const btn = document.createElement('button');
+      btn.textContent = chapter.title;
+      btn.dataset.chapterId = chapter.id;
+      btn.addEventListener('click', () => {
+        document.getElementById('ch-' + chapter.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      chapterNav.appendChild(btn);
+
+      const section = document.createElement('section');
+      section.className = 'chapter';
+      section.id = 'ch-' + chapter.id;
+
+      const heading = document.createElement('h2');
+      heading.className = 'chapter-title';
+      heading.textContent = chapter.title;
+      section.appendChild(heading);
+
+      (chapter.paragraphs || []).forEach(paraText => {
+        const p = document.createElement('p');
+        const tokens = tokenize(paraText);
+        for (const tok of tokens) {
+          if (tok.type === 'word') {
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.dataset.raw = tok.value;
+            span.textContent = tok.value;
+            p.appendChild(span);
+          } else {
+            p.appendChild(document.createTextNode(tok.value));
+          }
+        }
+        section.appendChild(p);
+      });
+
+      textBody.appendChild(section);
+    });
+
+    setupScrollSpy(chapters);
+
+    // Show content, hide upload zone
+    uploadZone.style.display = 'none';
+    content.style.display = 'block';
+    docTitle.textContent = textData.title || 'Latin Document';
+    docMeta.textContent = 'Click any word for dictionary lookup \u2022 Morphology from Logeion';
+    newDocBtn.style.display = '';
+    if (chapters.length <= 1) chapterNav.style.display = 'none';
+    else chapterNav.style.display = '';
+  }
+
+  // ── DOCX Loading ───────────────────────────────────────────────────────────
+
+  async function loadDocx(file) {
+    uploadError.textContent = '';
+
+    if (!file.name.match(/\.docx$/i)) {
+      uploadError.textContent = 'Please drop a .docx file (Word document).';
+      return;
+    }
+
+    if (window._mammothError || typeof mammoth === 'undefined') {
+      uploadError.textContent = 'Could not load mammoth.js (CDN unavailable). Please check your internet connection.';
+      return;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      if (result.messages && result.messages.some(m => m.type === 'error')) {
+        console.warn('Mammoth warnings:', result.messages);
+      }
+      const textData = extractStructure(result.value, file.name);
+      morphoCache.clear();
+      buildDOM(textData);
+    } catch (err) {
+      uploadError.textContent = 'Failed to read document: ' + (err.message || err);
+    }
+  }
+
+  // ── Scroll Spy ─────────────────────────────────────────────────────────────
+
+  function setupScrollSpy(chapters) {
+    if (!('IntersectionObserver' in window)) return;
+
+    const navBtns = {};
+    chapterNav.querySelectorAll('button').forEach(btn => {
+      navBtns[btn.dataset.chapterId] = btn;
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id.replace('ch-', '');
+          Object.values(navBtns).forEach(b => b.classList.remove('active'));
+          if (navBtns[id]) navBtns[id].classList.add('active');
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '-80px 0px 0px 0px' });
+
+    chapters.forEach(ch => {
+      const el = document.getElementById('ch-' + ch.id);
+      if (el) observer.observe(el);
+    });
+  }
+
+  // ── Morpho ─────────────────────────────────────────────────────────────────
+
+  const morphoCache = new Map();
+
+  async function fetchMorpho(word) {
+    if (morphoCache.has(word)) return morphoCache.get(word);
+    try {
+      const resp = await fetch(
+        `https://logeion.uchicago.edu/morpho/${encodeURIComponent(word)}`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const json = await resp.json();
+      const result = parseMorphoResponse(json);
+      morphoCache.set(word, result);
+      return result;
+    } catch {
+      morphoCache.set(word, null);
+      return null;
+    }
+  }
+
+  function parseMorphoResponse(json) {
+    try {
+      const annotation = json?.RDF?.Annotation;
+      if (!annotation) return null;
+
+      const bodies = [].concat(annotation.Body || []);
+      const analyses = [];
+
+      for (const body of bodies) {
+        const entry = body?.rest?.entry;
+        if (!entry) continue;
+        const entries = [].concat(entry);
+
+        for (const e of entries) {
+          const dict = e.dict || {};
+          const lemma = dict.hdwd?.$ || dict.hdwd || '';
+          const pos   = dict.pofs?.$ || dict.pofs || '';
+          const decl  = dict.decl?.$ || dict.decl || '';
+          const gend  = dict.gend?.$ || dict.gend || '';
+
+          const inflections = [].concat(e.infl || []);
+          const tags = [];
+
+          if (pos)  tags.push(pos);
+          if (decl) tags.push(decl);
+          if (gend) tags.push(gend);
+
+          for (const infl of inflections) {
+            const inflTags = [
+              infl.case?.$,
+              infl.num?.$,
+              infl.gend?.$,
+              infl.tense?.$,
+              infl.mood?.$,
+              infl.voice?.$,
+              infl.pers?.$,
+            ].filter(Boolean);
+            // Add unique tags only
+            for (const t of inflTags) {
+              if (!tags.includes(t)) tags.push(t);
+            }
+          }
+
+          if (lemma || tags.length > 0) {
+            analyses.push({ lemma, tags: tags.filter(t => t !== pos || analyses.length === 0 ? true : false) });
+          }
+        }
+      }
+
+      return analyses.length > 0 ? analyses : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Popup ──────────────────────────────────────────────────────────────────
+
+  const popup              = document.getElementById('popup');
+  const popLemma           = document.getElementById('popup-lemma');
+  const popGen             = document.getElementById('popup-gen');
+  const popPos             = document.getElementById('popup-pos');
+  const popDef             = document.getElementById('popup-def');
+  const popLS              = document.getElementById('popup-ls-link');
+  const popLog             = document.getElementById('popup-logeion-link');
+  const popClose           = document.getElementById('popup-close');
+  const popMorphoInner     = document.getElementById('popup-morpho-inner');
+  const popMorphoLoading   = document.getElementById('popup-morpho-loading');
+  const popMorphoUnavail   = document.getElementById('popup-morpho-unavailable');
+
+  let activeSpan = null;
+
+  function setMorphoState(state) {
+    popMorphoInner.style.display   = state === 'success'     ? '' : 'none';
+    popMorphoLoading.style.display = state === 'loading'     ? '' : 'none';
+    popMorphoUnavail.style.display = state === 'unavailable' ? '' : 'none';
+  }
+
+  function renderMorpho(analyses) {
+    popMorphoInner.innerHTML = '';
+    for (const analysis of analyses) {
+      const row = document.createElement('div');
+      row.className = 'morpho-analysis';
+
+      if (analysis.lemma) {
+        const lm = document.createElement('span');
+        lm.className = 'morpho-lemma';
+        lm.textContent = analysis.lemma;
+        row.appendChild(lm);
+      }
+
+      if (analysis.tags.length > 0) {
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'morpho-tags';
+        for (const tag of analysis.tags) {
+          const chip = document.createElement('span');
+          chip.className = 'morpho-tag';
+          chip.textContent = tag;
+          tagsDiv.appendChild(chip);
+        }
+        row.appendChild(tagsDiv);
+      }
+
+      popMorphoInner.appendChild(row);
+    }
+  }
+
+  function renderSuggestions(container, matches, labelText = 'Similar entries:') {
+    container.innerHTML = '';
+
+    if (!matches || matches.length === 0) {
+      container.textContent = 'Not found in dictionary';
+      return;
+    }
+
+    const label = document.createElement('div');
+    label.className = 'suggest-label';
+    label.textContent = labelText;
+    container.appendChild(label);
+
+    const list = document.createElement('div');
+    list.className = 'suggest-list';
+
+    for (const s of matches) {
+      const item = document.createElement('a');
+      item.className = 'suggest-item';
+      item.href = `https://logeion.uchicago.edu/${encodeURIComponent(s.lemma)}`;
+      item.target = '_blank';
+      item.rel = 'noopener';
+
+      const lm = document.createElement('span');
+      lm.className = 'suggest-lemma';
+      lm.textContent = s.lemma;
+      item.appendChild(lm);
+
+      if (s.pos) {
+        const ps = document.createElement('span');
+        ps.className = 'suggest-pos';
+        ps.textContent = s.pos;
+        item.appendChild(ps);
+      }
+
+      if (s.def) {
+        const df = document.createElement('span');
+        df.className = 'suggest-def';
+        df.textContent = s.def;
+        item.appendChild(df);
+      }
+
+      list.appendChild(item);
+    }
+    container.appendChild(list);
+  }
+
+  function showPopup(entry, spanEl) {
+    if (activeSpan) activeSpan.classList.remove('active');
+    activeSpan = spanEl;
+    spanEl.classList.add('active');
+
+    const rawWord  = spanEl.dataset.raw;
+    const normWord = normalize(rawWord);
+
+    if (entry) {
+      popLemma.textContent = entry.lemma || rawWord;
+      popGen.textContent   = entry.gen ? ',\u00a0' + entry.gen : '';
+      popPos.textContent   = entry.pos || '';
+      popDef.textContent   = entry.def || '(no definition)';
+      popDef.classList.remove('not-found');
+
+      const lsWord = encodeURIComponent(entry.lemma || normWord);
+      popLS.href = `https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0059:entry=${lsWord}`;
+      popLS.style.display = '';
+    } else {
+      popLemma.textContent = rawWord;
+      popGen.textContent   = '';
+      popPos.textContent   = '';
+      popDef.classList.add('not-found');
+      popLS.style.display  = 'none';
+      const frame = document.createElement('iframe');
+      frame.id  = 'popup-logeion-frame';
+      frame.src = `https://logeion.uchicago.edu/${encodeURIComponent(normWord)}`;
+      frame.title = 'Logeion entry';
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      popDef.appendChild(frame);
+    }
+
+    popLog.href = `https://logeion.uchicago.edu/${encodeURIComponent(normWord)}`;
+
+    popup.classList.add('visible');
+    positionPopup(spanEl);
+
+    // Async morpho fetch
+    setMorphoState('loading');
+    fetchMorpho(normWord).then(morpho => {
+      if (activeSpan !== spanEl) return; // stale — user moved on
+      if (morpho) {
+        renderMorpho(morpho);
+        setMorphoState('success');
+      } else {
+        setMorphoState('unavailable');
+      }
+      // Reposition in case popup height changed
+      positionPopup(spanEl);
+    });
+  }
+
+  function positionPopup(spanEl) {
+    const rect    = spanEl.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    const scrollX = window.scrollX;
+    const popH    = popup.offsetHeight;
+    const popW    = popup.offsetWidth;
+    const vw      = window.innerWidth;
+    const vh      = window.innerHeight;
+    const GAP     = 8;
+
+    let top  = rect.bottom + scrollY + GAP;
+    let left = rect.left + scrollX;
+
+    if (rect.bottom + GAP + popH > vh) {
+      top = rect.top + scrollY - popH - GAP;
+    }
+
+    left = Math.max(scrollX + 8, Math.min(left, scrollX + vw - popW - 8));
+
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  }
+
+  function hidePopup() {
+    popup.classList.remove('visible');
+    if (activeSpan) {
+      activeSpan.classList.remove('active');
+      activeSpan = null;
+    }
+  }
+
+  // ── Word Click Handler ─────────────────────────────────────────────────────
+
+  textBody.addEventListener('click', e => {
+    if (!e.target.matches('.word')) return;
+    const span = e.target;
+    if (span === activeSpan) { hidePopup(); return; }
+    showPopup(lookup(span.dataset.raw), span);
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', e => {
+    if (!popup.contains(e.target)) hidePopup();
+  });
+
+  popClose.addEventListener('click', hidePopup);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hidePopup();
+  });
+
+  window.addEventListener('scroll', () => {
+    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+  });
+
+  // ── Upload / Drop Handling ─────────────────────────────────────────────────
+
+  browseBtn.addEventListener('click', () => fileInput.click());
+
+  dropArea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+  });
+
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) loadDocx(file);
+    fileInput.value = '';
+  });
+
+  dropArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropArea.classList.add('drag-over');
+  });
+
+  dropArea.addEventListener('dragleave', e => {
+    if (!dropArea.contains(e.relatedTarget)) {
+      dropArea.classList.remove('drag-over');
+    }
+  });
+
+  dropArea.addEventListener('drop', e => {
+    e.preventDefault();
+    dropArea.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadDocx(file);
+  });
+
+  // Also allow dropping anywhere on the page when in upload state
+  document.addEventListener('dragover', e => {
+    if (uploadZone.style.display !== 'none') e.preventDefault();
+  });
+
+  document.addEventListener('drop', e => {
+    if (uploadZone.style.display !== 'none') {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) loadDocx(file);
+    }
+  });
+
+  // ── New Document Button ────────────────────────────────────────────────────
+
+  newDocBtn.addEventListener('click', () => {
+    hidePopup();
+    morphoCache.clear();
+    textBody.innerHTML = '';
+    chapterNav.innerHTML = '';
+    content.style.display = 'none';
+    uploadZone.style.display = '';
+    docTitle.textContent = 'Latin Reader';
+    docMeta.textContent = 'Drop a .docx file to begin \u2022 Click any word for dictionary & morphology';
+    newDocBtn.style.display = 'none';
+    uploadError.textContent = '';
+  });
+
+})();
+</script>
+</body>
+</html>
