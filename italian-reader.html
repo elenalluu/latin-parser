@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Italian Reader</title>
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f7f3ee;
+      --text:        #1a1a2e;
+      --muted:       #5a7a6a;
+      --accent:      #2d6a4f;
+      --hover-line:  #52b788;
+      --active-bg:   #d8f3dc;
+      --popup-bg:    #ffffff;
+      --popup-bdr:   #2d6a4f;
+      --link:        #1b4332;
+      --rule:        #b7d5c4;
+      --nav-bg:      #eef7f1;
+    }
+
+    html { font-size: 18px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.85;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    #site-header {
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--rule);
+      padding: 1.5rem 2rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #header-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    #site-header h1 {
+      font-size: 1.15rem;
+      font-weight: normal;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+
+    #site-header .meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    #new-doc-btn {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+      display: none;
+    }
+
+    #new-doc-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    #chapter-nav {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.7rem;
+    }
+
+    #chapter-nav button {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.55rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #chapter-nav button:hover,
+    #chapter-nav button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Upload Zone ─────────────────────────────────────────── */
+    #upload-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 120px);
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    #drop-area {
+      border: 2px dashed var(--rule);
+      border-radius: 10px;
+      padding: 4rem 3rem;
+      max-width: 480px;
+      width: 100%;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    #drop-area:hover,
+    #drop-area.drag-over {
+      border-color: var(--accent);
+      background: rgba(45, 106, 79, 0.04);
+    }
+
+    #drop-area.drag-over {
+      background: rgba(45, 106, 79, 0.08);
+    }
+
+    #drop-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    #drop-label {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    #drop-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    #file-input { display: none; }
+
+    #browse-btn {
+      background: none;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.4rem 1.2rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #browse-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #upload-error {
+      margin-top: 1rem;
+      color: #8b0000;
+      font-size: 0.82rem;
+      font-style: italic;
+      min-height: 1.2em;
+    }
+
+    /* ── Main Content ────────────────────────────────────────── */
+    #content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+      display: none;
+    }
+
+    .chapter {
+      margin-bottom: 3.5rem;
+    }
+
+    .chapter-title {
+      font-size: 1rem;
+      font-variant: small-caps;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    p {
+      margin-bottom: 1.1em;
+      text-indent: 1.5em;
+    }
+
+    p:first-of-type { text-indent: 0; }
+
+    /* ── Clickable Words ─────────────────────────────────────── */
+    .word {
+      cursor: pointer;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.1s;
+      border-radius: 1px;
+    }
+
+    .word:hover {
+      border-bottom-color: var(--hover-line);
+    }
+
+    .word.active {
+      background: var(--active-bg);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Tooltip Popup ───────────────────────────────────────── */
+    #popup {
+      position: absolute;
+      z-index: 1000;
+      width: 520px;
+      max-width: calc(100vw - 24px);
+      background: var(--popup-bg);
+      border: 1px solid var(--popup-bdr);
+      border-radius: 5px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+      display: none;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    #popup.visible { display: block; }
+
+    #popup-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0.55rem 0.75rem 0.4rem;
+      border-bottom: 1px solid var(--rule);
+      gap: 0.5rem;
+    }
+
+    #popup-lemma {
+      font-weight: bold;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    #popup-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 0 0 0.4rem;
+      flex-shrink: 0;
+    }
+
+    #popup-close:hover { color: var(--text); }
+
+    #popup-frame {
+      display: block;
+      width: 100%;
+      height: 420px;
+      border: none;
+      border-top: 1px solid var(--rule);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    #popup-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.78rem;
+    }
+
+    #popup-footer a {
+      color: var(--link);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    #popup-footer a:hover { border-bottom-color: var(--accent); }
+
+    /* ── Error Banner ────────────────────────────────────────── */
+    #error-banner {
+      background: #fff0f0;
+      border: 1px solid #e8a0a0;
+      border-radius: 4px;
+      color: #8b0000;
+      display: none;
+      font-size: 0.85rem;
+      margin: 1rem auto;
+      max-width: 720px;
+      padding: 0.8rem 1rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      html { font-size: 16px; }
+      #content { padding: 1.5rem 1rem 4rem; }
+      #popup { width: calc(100vw - 24px); }
+      #drop-area { padding: 2.5rem 1.5rem; }
+    }
+
+    /* ── Print ───────────────────────────────────────────────── */
+    @media print {
+      #site-header, #popup, #upload-zone { display: none !important; }
+      #content { display: block !important; }
+      .word { cursor: text; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="site-header">
+  <div id="header-top">
+    <h1 id="doc-title">Italian Reader</h1>
+    <button id="new-doc-btn">Nuovo documento</button>
+  </div>
+  <div class="meta" id="doc-meta">Trascina un documento qui &bull; Clicca su qualsiasi parola per il dizionario</div>
+  <nav id="chapter-nav" aria-label="Sezioni"></nav>
+</header>
+
+<!-- ── Error Banner ── -->
+<div id="error-banner"></div>
+
+<!-- ── Upload Zone ── -->
+<div id="upload-zone">
+  <div id="drop-area" role="button" tabindex="0" aria-label="Zona di trascinamento per file PDF o .docx">
+    <div id="drop-icon">&#128196;</div>
+    <div id="drop-label">Trascina un documento italiano qui</div>
+    <div id="drop-sub">.pdf o .docx</div>
+    <button id="browse-btn" type="button">Sfoglia&hellip;</button>
+    <input id="file-input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <div id="upload-error" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- ── Main Text ── -->
+<main id="content">
+  <div id="text-body"></div>
+</main>
+
+<!-- ── Popup Tooltip ── -->
+<div id="popup" role="dialog" aria-label="Wiktionary">
+  <div id="popup-header">
+    <span id="popup-lemma"></span>
+    <button id="popup-close" aria-label="Chiudi">&times;</button>
+  </div>
+  <iframe id="popup-frame"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          title="Wiktionary entry"></iframe>
+  <div id="popup-footer">
+    <a id="popup-wikt-link" href="#" target="_blank" rel="noopener">en.wiktionary &#8599;</a>
+    <a id="popup-treccani-link" href="#" target="_blank" rel="noopener">Treccani &#8599;</a>
+  </div>
+</div>
+
+<!-- ── External Scripts ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"
+        onerror="window._mammothError=true"></script>
+
+<!-- ── Application Logic ── -->
+<script>
+(function () {
+  'use strict';
+
+  // ── Italian Tokenizer ──────────────────────────────────────────────────────
+
+  // Italian word chars: ASCII letters + accented vowels used in Italian
+  const WORD_RE = /([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]+)/;
+
+  function tokenize(str) {
+    const tokens = [];
+    const parts = str.split(WORD_RE);
+    for (const part of parts) {
+      if (!part) continue;
+      if (/[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]/.test(part)) {
+        tokens.push({ type: 'word', value: part });
+      } else {
+        tokens.push({ type: 'punct', value: part });
+      }
+    }
+    return tokens;
+  }
+
+  // ── Structure Extraction (for .docx) ──────────────────────────────────────
+
+  function extractStructure(html, filename) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+
+    const chapters = [];
+    let current = null;
+    let chapterIdx = 0;
+
+    const docTitle = filename.replace(/\.(docx|pdf)$/i, '').replace(/[_-]/g, ' ');
+
+    function flushPara(text) {
+      const t = text.trim();
+      if (!t) return;
+      if (!current) {
+        current = { id: 'section' + (++chapterIdx), title: docTitle, paragraphs: [] };
+        chapters.push(current);
+      }
+      current.paragraphs.push(t);
+    }
+
+    for (const child of div.children) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+        current = { id: 'section' + (++chapterIdx), title: child.textContent.trim() || 'Sezione ' + chapterIdx, paragraphs: [] };
+        chapters.push(current);
+      } else if (tag === 'p' || tag === 'li') {
+        flushPara(child.textContent);
+      } else {
+        for (const sub of child.children) {
+          flushPara(sub.textContent);
+        }
+      }
+    }
+
+    if (chapters.length === 0) {
+      chapters.push({ id: 'section1', title: docTitle, paragraphs: [div.textContent.trim()] });
+    }
+
+    const filled = chapters.filter(ch => ch.paragraphs.length > 0);
+    return {
+      title: filled[0] ? (chapters[0].title || docTitle) : docTitle,
+      chapters: filled.length > 0 ? filled : chapters
+    };
+  }
+
+  // ── PDF.js Support ─────────────────────────────────────────────────────────
+
+  let pdfjsLib = null;
+
+  async function ensurePdfjs() {
+    if (pdfjsLib) return true;
+    try {
+      pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function reconstructLines(items) {
+    if (!items || items.length === 0) return [];
+
+    // Group text items by Y coordinate (bucket to 3px)
+    const lineMap = new Map();
+    for (const item of items) {
+      if (!item.str || !item.str.trim()) continue;
+      const y = Math.round(item.transform[5] / 3) * 3;
+      if (!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y).push({ x: item.transform[4], str: item.str });
+    }
+
+    // Sort lines top→bottom (higher Y = higher on page in PDF coords)
+    const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
+
+    const lines = sortedYs.map(y => {
+      const items = lineMap.get(y).sort((a, b) => a.x - b.x);
+      return items.map(i => i.str).join(' ').trim();
+    }).filter(l => l.length > 0);
+
+    // Group lines into paragraphs (blank line = new paragraph)
+    const paragraphs = [];
+    let current = [];
+    for (const line of lines) {
+      if (line === '') {
+        if (current.length > 0) {
+          paragraphs.push(current.join(' '));
+          current = [];
+        }
+      } else {
+        current.push(line);
+      }
+    }
+    if (current.length > 0) paragraphs.push(current.join(' '));
+
+    // Filter short paragraphs (page numbers, headers, stray chars)
+    return paragraphs.filter(p => p.length >= 10);
+  }
+
+  function mergeShortSections(sections, minParas = 2) {
+    const merged = [];
+    let carry = null;
+    for (const sec of sections) {
+      if (carry) {
+        carry.paragraphs.push(...sec.paragraphs);
+        if (carry.paragraphs.length >= minParas) {
+          merged.push(carry);
+          carry = null;
+        }
+      } else if (sec.paragraphs.length < minParas) {
+        carry = { ...sec, paragraphs: [...sec.paragraphs] };
+      } else {
+        merged.push(sec);
+      }
+    }
+    if (carry) merged.push(carry);
+    return merged;
+  }
+
+  async function loadPdf(file) {
+    uploadError.textContent = '';
+    errorBanner.style.display = 'none';
+
+    const loaded = await ensurePdfjs();
+    if (!loaded) {
+      uploadError.textContent = 'Impossibile caricare il parser PDF. Controlla la connessione internet.';
+      return;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
+
+      const sections = [];
+      let totalParas = 0;
+
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        const paragraphs = reconstructLines(tc.items);
+        totalParas += paragraphs.length;
+        sections.push({ id: 'page' + i, title: 'Pagina ' + i, paragraphs });
+      }
+
+      if (totalParas === 0) {
+        errorBanner.textContent = 'Questo PDF non contiene testo estraibile. Potrebbe essere una scansione di immagini.';
+        errorBanner.style.display = 'block';
+        return;
+      }
+
+      const finalSections = numPages > 10 ? mergeShortSections(sections) : sections;
+      const docTitleRaw = file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ');
+      buildDOM({ title: docTitleRaw, chapters: finalSections });
+    } catch (err) {
+      uploadError.textContent = 'Errore nella lettura del PDF: ' + (err.message || err);
+    }
+  }
+
+  // ── DOCX Loading ───────────────────────────────────────────────────────────
+
+  async function loadDocx(file) {
+    uploadError.textContent = '';
+    errorBanner.style.display = 'none';
+
+    if (window._mammothError || typeof mammoth === 'undefined') {
+      uploadError.textContent = 'Impossibile caricare mammoth.js (CDN non disponibile). Controlla la connessione internet.';
+      return;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const textData = extractStructure(result.value, file.name);
+      buildDOM(textData);
+    } catch (err) {
+      uploadError.textContent = 'Errore nella lettura del documento: ' + (err.message || err);
+    }
+  }
+
+  // ── File Router ────────────────────────────────────────────────────────────
+
+  async function handleFile(file) {
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      uploadError.textContent = 'File troppo grande (massimo 50 MB).';
+      return;
+    }
+    if (file.name.match(/\.pdf$/i) || file.type === 'application/pdf') {
+      await loadPdf(file);
+    } else if (file.name.match(/\.docx$/i)) {
+      await loadDocx(file);
+    } else {
+      uploadError.textContent = 'Tipo di file non supportato. Carica un file .pdf o .docx.';
+    }
+  }
+
+  // ── DOM Elements ───────────────────────────────────────────────────────────
+
+  const uploadZone  = document.getElementById('upload-zone');
+  const content     = document.getElementById('content');
+  const textBody    = document.getElementById('text-body');
+  const chapterNav  = document.getElementById('chapter-nav');
+  const docTitleEl  = document.getElementById('doc-title');
+  const docMeta     = document.getElementById('doc-meta');
+  const newDocBtn   = document.getElementById('new-doc-btn');
+  const dropArea    = document.getElementById('drop-area');
+  const fileInput   = document.getElementById('file-input');
+  const browseBtn   = document.getElementById('browse-btn');
+  const uploadError = document.getElementById('upload-error');
+  const errorBanner = document.getElementById('error-banner');
+
+  // ── DOM Building ───────────────────────────────────────────────────────────
+
+  function buildDOM(textData) {
+    textBody.innerHTML = '';
+    chapterNav.innerHTML = '';
+
+    const chapters = textData.chapters || [];
+
+    chapters.forEach(chapter => {
+      const btn = document.createElement('button');
+      btn.textContent = chapter.title;
+      btn.dataset.chapterId = chapter.id;
+      btn.addEventListener('click', () => {
+        document.getElementById('ch-' + chapter.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      chapterNav.appendChild(btn);
+
+      const section = document.createElement('section');
+      section.className = 'chapter';
+      section.id = 'ch-' + chapter.id;
+
+      const heading = document.createElement('h2');
+      heading.className = 'chapter-title';
+      heading.textContent = chapter.title;
+      section.appendChild(heading);
+
+      (chapter.paragraphs || []).forEach(paraText => {
+        const p = document.createElement('p');
+        const tokens = tokenize(paraText);
+        for (const tok of tokens) {
+          if (tok.type === 'word') {
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.dataset.raw = tok.value;
+            span.textContent = tok.value;
+            p.appendChild(span);
+          } else {
+            p.appendChild(document.createTextNode(tok.value));
+          }
+        }
+        section.appendChild(p);
+      });
+
+      textBody.appendChild(section);
+    });
+
+    setupScrollSpy(chapters);
+
+    uploadZone.style.display = 'none';
+    content.style.display = 'block';
+    docTitleEl.textContent = textData.title || 'Documento italiano';
+    docMeta.textContent = 'Clicca su qualsiasi parola per la definizione \u2022 Wiktionary · Treccani';
+    newDocBtn.style.display = '';
+    chapterNav.style.display = chapters.length <= 1 ? 'none' : '';
+  }
+
+  // ── Scroll Spy ─────────────────────────────────────────────────────────────
+
+  function setupScrollSpy(chapters) {
+    if (!('IntersectionObserver' in window)) return;
+
+    const navBtns = {};
+    chapterNav.querySelectorAll('button').forEach(btn => {
+      navBtns[btn.dataset.chapterId] = btn;
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id.replace('ch-', '');
+          Object.values(navBtns).forEach(b => b.classList.remove('active'));
+          if (navBtns[id]) navBtns[id].classList.add('active');
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '-80px 0px 0px 0px' });
+
+    chapters.forEach(ch => {
+      const el = document.getElementById('ch-' + ch.id);
+      if (el) observer.observe(el);
+    });
+  }
+
+  // ── Popup ──────────────────────────────────────────────────────────────────
+
+  const popup       = document.getElementById('popup');
+  const popLemma    = document.getElementById('popup-lemma');
+  const popFrame    = document.getElementById('popup-frame');
+  const popWikt     = document.getElementById('popup-wikt-link');
+  const popTreccani = document.getElementById('popup-treccani-link');
+  const popClose    = document.getElementById('popup-close');
+
+  let activeSpan = null;
+
+  function showPopup(spanEl) {
+    if (activeSpan) activeSpan.classList.remove('active');
+    activeSpan = spanEl;
+    spanEl.classList.add('active');
+
+    const rawWord = spanEl.dataset.raw;
+    popLemma.textContent = rawWord;
+
+    const enc = encodeURIComponent(rawWord.toLowerCase());
+    const wiktUrl = `https://en.wiktionary.org/wiki/${enc}#Italian`;
+
+    popFrame.src = wiktUrl;
+    popWikt.href = wiktUrl;
+    popTreccani.href = `https://www.treccani.it/vocabolario/${enc}`;
+
+    popup.classList.add('visible');
+    positionPopup(spanEl);
+  }
+
+  function positionPopup(spanEl) {
+    const rect   = spanEl.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    const scrollX = window.scrollX;
+    const popH   = popup.offsetHeight;
+    const popW   = popup.offsetWidth;
+    const vw     = window.innerWidth;
+    const vh     = window.innerHeight;
+    const GAP    = 8;
+
+    let top  = rect.bottom + scrollY + GAP;
+    let left = rect.left + scrollX;
+
+    if (rect.bottom + GAP + popH > vh) {
+      top = rect.top + scrollY - popH - GAP;
+    }
+
+    left = Math.max(scrollX + 8, Math.min(left, scrollX + vw - popW - 8));
+
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  }
+
+  function hidePopup() {
+    popup.classList.remove('visible');
+    if (activeSpan) {
+      activeSpan.classList.remove('active');
+      activeSpan = null;
+    }
+  }
+
+  // ── Word Click Handler ─────────────────────────────────────────────────────
+
+  textBody.addEventListener('click', e => {
+    if (!e.target.matches('.word')) return;
+    const span = e.target;
+    if (span === activeSpan) { hidePopup(); return; }
+    showPopup(span);
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', e => {
+    if (!popup.contains(e.target)) hidePopup();
+  });
+
+  popClose.addEventListener('click', hidePopup);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hidePopup();
+  });
+
+  window.addEventListener('scroll', () => {
+    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+  });
+
+  // ── Upload / Drop Handling ─────────────────────────────────────────────────
+
+  browseBtn.addEventListener('click', () => fileInput.click());
+
+  dropArea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+  });
+
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) handleFile(file);
+    fileInput.value = '';
+  });
+
+  dropArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropArea.classList.add('drag-over');
+  });
+
+  dropArea.addEventListener('dragleave', e => {
+    if (!dropArea.contains(e.relatedTarget)) {
+      dropArea.classList.remove('drag-over');
+    }
+  });
+
+  dropArea.addEventListener('drop', e => {
+    e.preventDefault();
+    dropArea.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // Allow dropping anywhere on the page when in upload state
+  document.addEventListener('dragover', e => {
+    if (uploadZone.style.display !== 'none') e.preventDefault();
+  });
+
+  document.addEventListener('drop', e => {
+    if (uploadZone.style.display !== 'none') {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    }
+  });
+
+  // ── New Document Button ────────────────────────────────────────────────────
+
+  newDocBtn.addEventListener('click', () => {
+    hidePopup();
+    textBody.innerHTML = '';
+    chapterNav.innerHTML = '';
+    content.style.display = 'none';
+    uploadZone.style.display = '';
+    errorBanner.style.display = 'none';
+    docTitleEl.textContent = 'Italian Reader';
+    docMeta.textContent = 'Trascina un documento qui \u2022 Clicca su qualsiasi parola per il dizionario';
+    newDocBtn.style.display = 'none';
+    uploadError.textContent = '';
+  });
+
+})();
+</script>
+</body>
+</html>
