@@ -422,7 +422,7 @@
     <h1 id="doc-title">Parser</h1>
     <button id="new-doc-btn">New Document</button>
   </div>
-  <div class="meta" id="doc-meta">Drop a .docx file to begin &bull; Click any word for dictionary &amp; morphology</div>
+  <div class="meta" id="doc-meta">Drop a .docx or .pdf file to begin &bull; Click any word for dictionary &amp; morphology</div>
   <nav id="chapter-nav" aria-label="Chapters"></nav>
 </header>
 
@@ -431,12 +431,12 @@
 
 <!-- ── Upload Zone ── -->
 <div id="upload-zone">
-  <div id="drop-area" role="button" tabindex="0" aria-label="Drop zone for .docx files">
+  <div id="drop-area" role="button" tabindex="0" aria-label="Drop zone for .docx or .pdf files">
     <div id="drop-icon">&#128196;</div>
-    <div id="drop-label">Drop a Word document here</div>
-    <div id="drop-sub">.docx files only</div>
+    <div id="drop-label">Drop a document here</div>
+    <div id="drop-sub">.docx or .pdf files</div>
     <button id="browse-btn" type="button">Browse&hellip;</button>
-    <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf">
     <div id="upload-error" aria-live="polite"></div>
   </div>
 </div>
@@ -470,6 +470,8 @@
 <!-- ── External Scripts ── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"
         onerror="window._mammothError=true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+        onerror="window._pdfjsError=true"></script>
 <script src="dict.js" onerror="window._dictError=true"></script>
 
 <!-- ── Application Logic ── -->
@@ -732,11 +734,6 @@
   async function loadDocx(file) {
     uploadError.textContent = '';
 
-    if (!file.name.match(/\.docx$/i)) {
-      uploadError.textContent = 'Please drop a .docx file (Word document).';
-      return;
-    }
-
     if (window._mammothError || typeof mammoth === 'undefined') {
       uploadError.textContent = 'Could not load mammoth.js (CDN unavailable). Please check your internet connection.';
       return;
@@ -753,6 +750,87 @@
       buildDOM(textData);
     } catch (err) {
       uploadError.textContent = 'Failed to read document: ' + (err.message || err);
+    }
+  }
+
+  // ── PDF Loading ────────────────────────────────────────────────────────────
+
+  async function loadPdf(file) {
+    uploadError.textContent = '';
+
+    if (window._pdfjsError || typeof pdfjsLib === 'undefined') {
+      uploadError.textContent = 'Could not load PDF.js (CDN unavailable). Please check your internet connection.';
+      return;
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const docName = file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ');
+
+      const chapters = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+
+        let pageText = '';
+        let lastY = null;
+        let lastX = null;
+
+        for (const item of textContent.items) {
+          if (!('str' in item)) continue;
+          if (lastY === null) {
+            pageText += item.str;
+          } else if (Math.abs(item.transform[5] - lastY) > 2) {
+            pageText += '\n' + item.str;
+          } else {
+            const needsSpace = lastX !== null && item.transform[4] > lastX &&
+              !pageText.endsWith(' ') && !item.str.startsWith(' ');
+            pageText += (needsSpace ? ' ' : '') + item.str;
+          }
+          lastY = item.transform[5];
+          lastX = item.transform[4] + (item.width || 0);
+        }
+
+        const paragraphs = pageText
+          .split(/\n\n+/)
+          .map(p => p.replace(/\n/g, ' ').trim())
+          .filter(p => p.length > 0);
+
+        if (paragraphs.length > 0) {
+          chapters.push({
+            id: 'section' + pageNum,
+            title: pdf.numPages > 1 ? 'Page ' + pageNum : docName,
+            paragraphs
+          });
+        }
+      }
+
+      if (chapters.length === 0) {
+        uploadError.textContent = 'No text found in PDF.';
+        return;
+      }
+
+      morphoCache.clear();
+      buildDOM({ title: docName, chapters });
+    } catch (err) {
+      uploadError.textContent = 'Failed to read PDF: ' + (err.message || err);
+    }
+  }
+
+  // ── File Router ────────────────────────────────────────────────────────────
+
+  function loadFile(file) {
+    if (file.name.match(/\.docx$/i)) {
+      loadDocx(file);
+    } else if (file.name.match(/\.pdf$/i)) {
+      loadPdf(file);
+    } else {
+      uploadError.textContent = 'Please upload a .docx or .pdf file.';
     }
   }
 
@@ -1077,7 +1155,7 @@
 
   fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
-    if (file) loadDocx(file);
+    if (file) loadFile(file);
     fileInput.value = '';
   });
 
@@ -1096,7 +1174,7 @@
     e.preventDefault();
     dropArea.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file) loadDocx(file);
+    if (file) loadFile(file);
   });
 
   // Also allow dropping anywhere on the page when in upload state
@@ -1108,7 +1186,7 @@
     if (uploadZone.style.display !== 'none') {
       e.preventDefault();
       const file = e.dataTransfer.files[0];
-      if (file) loadDocx(file);
+      if (file) loadFile(file);
     }
   });
 
@@ -1122,7 +1200,7 @@
     content.style.display = 'none';
     uploadZone.style.display = '';
     docTitle.textContent = 'Latin Reader';
-    docMeta.textContent = 'Drop a .docx file to begin \u2022 Click any word for dictionary & morphology';
+    docMeta.textContent = 'Drop a .docx or .pdf file to begin \u2022 Click any word for dictionary & morphology';
     newDocBtn.style.display = 'none';
     uploadError.textContent = '';
   });
