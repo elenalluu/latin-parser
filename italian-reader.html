@@ -345,12 +345,12 @@
 
 <!-- ── Upload Zone ── -->
 <div id="upload-zone">
-  <div id="drop-area" role="button" tabindex="0" aria-label="Zona di trascinamento per file PDF o .docx">
+  <div id="drop-area" role="button" tabindex="0" aria-label="Zona di trascinamento per file PDF, .docx o .epub">
     <div id="drop-icon">&#128196;</div>
     <div id="drop-label">Trascina un documento italiano qui</div>
-    <div id="drop-sub">.pdf o .docx</div>
+    <div id="drop-sub">.pdf, .docx o .epub</div>
     <button id="browse-btn" type="button">Sfoglia&hellip;</button>
-    <input id="file-input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <input id="file-input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip,.epub">
     <div id="upload-error" aria-live="polite"></div>
   </div>
 </div>
@@ -378,6 +378,8 @@
 <!-- ── External Scripts ── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"
         onerror="window._mammothError=true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        onerror="window._jszipError=true"></script>
 
 <!-- ── Application Logic ── -->
 <script>
@@ -586,6 +588,92 @@
     }
   }
 
+  // ── EPUB Loading ────────────────────────────────────────────────────────────
+
+  async function loadEpub(file) {
+    uploadError.textContent = '';
+    errorBanner.style.display = 'none';
+
+    if (window._jszipError || typeof JSZip === 'undefined') {
+      uploadError.textContent = 'Impossibile caricare JSZip (CDN non disponibile). Controlla la connessione internet.';
+      return;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+
+      // 1. Find OPF path from container.xml
+      const containerXml = await zip.file('META-INF/container.xml').async('string');
+      const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+      const opfPath = containerDoc.querySelector('rootfile').getAttribute('full-path');
+      const opfBase = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
+
+      // 2. Parse OPF
+      const opfXml = await zip.file(opfPath).async('string');
+      const opfDoc = new DOMParser().parseFromString(opfXml, 'application/xml');
+
+      const titleEl = opfDoc.querySelector('metadata > *|title, metadata title');
+      const docTitle = (titleEl?.textContent?.trim()) || file.name.replace(/\.epub$/i, '').replace(/[_-]/g, ' ');
+
+      // Build manifest map: id -> href
+      const manifest = {};
+      opfDoc.querySelectorAll('manifest item').forEach(item => {
+        manifest[item.getAttribute('id')] = item.getAttribute('href');
+      });
+
+      // Get spine order
+      const spineItems = [...opfDoc.querySelectorAll('spine itemref')].map(ref => ref.getAttribute('idref'));
+
+      // 3. Extract chapters
+      const chapters = [];
+      let chapterIdx = 0;
+
+      for (const idref of spineItems) {
+        const href = manifest[idref];
+        if (!href) continue;
+        const fullPath = opfBase + href;
+        const fileEntry = zip.file(fullPath) || zip.file(href);
+        if (!fileEntry) continue;
+
+        const xhtmlStr = await fileEntry.async('string');
+        const doc = new DOMParser().parseFromString(xhtmlStr, 'application/xhtml+xml');
+
+        // Try to split by headings
+        const body = doc.body || doc.documentElement;
+        const children = [...body.children];
+        let currentChapter = null;
+
+        for (const el of children) {
+          const tag = el.tagName.toLowerCase();
+          if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+            currentChapter = { id: 'section' + (++chapterIdx), title: el.textContent.trim(), paragraphs: [] };
+            chapters.push(currentChapter);
+          } else {
+            const text = el.textContent.trim();
+            if (!text) continue;
+            if (!currentChapter) {
+              currentChapter = { id: 'section' + (++chapterIdx), title: docTitle, paragraphs: [] };
+              chapters.push(currentChapter);
+            }
+            currentChapter.paragraphs.push(text);
+          }
+        }
+      }
+
+      const filled = chapters.filter(ch => ch.paragraphs.length > 0);
+      if (filled.length === 0) {
+        errorBanner.textContent = 'Questo EPUB non contiene testo estraibile.';
+        errorBanner.style.display = 'block';
+        return;
+      }
+
+      buildDOM({ title: docTitle, chapters: filled });
+    } catch (err) {
+      uploadError.textContent = 'Errore nella lettura del file EPUB: ' + (err.message || err);
+    }
+  }
+
   // ── File Router ────────────────────────────────────────────────────────────
 
   async function handleFile(file) {
@@ -598,8 +686,10 @@
       await loadPdf(file);
     } else if (file.name.match(/\.docx$/i)) {
       await loadDocx(file);
+    } else if (file.name.match(/\.epub$/i)) {
+      await loadEpub(file);
     } else {
-      uploadError.textContent = 'Tipo di file non supportato. Carica un file .pdf o .docx.';
+      uploadError.textContent = 'Tipo di file non supportato. Carica un file .pdf, .docx o .epub.';
     }
   }
 
