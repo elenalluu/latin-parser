@@ -213,22 +213,7 @@
 
     p:first-of-type { text-indent: 0; }
 
-    /* ── Clickable Words ─────────────────────────────────────── */
-    .word {
-      cursor: pointer;
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.1s;
-      border-radius: 1px;
-    }
-
-    .word:hover {
-      border-bottom-color: var(--hover-line);
-    }
-
-    .word.active {
-      background: var(--active-bg);
-      border-bottom-color: var(--accent);
-    }
+    #text-body { outline: none; }
 
     /* ── Tooltip Popup ───────────────────────────────────────── */
     #popup {
@@ -324,7 +309,6 @@
     @media print {
       #site-header, #popup, #upload-zone { display: none !important; }
       #content { display: block !important; }
-      .word { cursor: text; }
     }
   </style>
 </head>
@@ -357,7 +341,7 @@
 
 <!-- ── Main Text ── -->
 <main id="content">
-  <div id="text-body"></div>
+  <div id="text-body" contenteditable="true" spellcheck="false"></div>
 </main>
 
 <!-- ── Popup Tooltip ── -->
@@ -385,25 +369,6 @@
 <script>
 (function () {
   'use strict';
-
-  // ── Italian Tokenizer ──────────────────────────────────────────────────────
-
-  // Italian word chars: ASCII letters + accented vowels used in Italian
-  const WORD_RE = /([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]+)/;
-
-  function tokenize(str) {
-    const tokens = [];
-    const parts = str.split(WORD_RE);
-    for (const part of parts) {
-      if (!part) continue;
-      if (/[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]/.test(part)) {
-        tokens.push({ type: 'word', value: part });
-      } else {
-        tokens.push({ type: 'punct', value: part });
-      }
-    }
-    return tokens;
-  }
 
   // ── Structure Extraction (for .docx) ──────────────────────────────────────
 
@@ -736,18 +701,7 @@
 
       (chapter.paragraphs || []).forEach(paraText => {
         const p = document.createElement('p');
-        const tokens = tokenize(paraText);
-        for (const tok of tokens) {
-          if (tok.type === 'word') {
-            const span = document.createElement('span');
-            span.className = 'word';
-            span.dataset.raw = tok.value;
-            span.textContent = tok.value;
-            p.appendChild(span);
-          } else {
-            p.appendChild(document.createTextNode(tok.value));
-          }
-        }
+        p.textContent = paraText;
         section.appendChild(p);
       });
 
@@ -760,7 +714,7 @@
     content.style.display = 'block';
     docTitleEl.textContent = textData.title || 'Documento italiano';
     docMeta.textContent = 'Clicca su qualsiasi parola per la definizione \u2022 Wiktionary · Treccani';
-    newDocBtn.style.display = '';
+    newDocBtn.style.display = 'inline-block';
     chapterNav.style.display = chapters.length <= 1 ? 'none' : '';
   }
 
@@ -799,14 +753,11 @@
   const popTreccani = document.getElementById('popup-treccani-link');
   const popClose    = document.getElementById('popup-close');
 
-  let activeSpan = null;
+  let activeRange = null;
 
-  function showPopup(spanEl) {
-    if (activeSpan) activeSpan.classList.remove('active');
-    activeSpan = spanEl;
-    spanEl.classList.add('active');
+  function showPopup(rawWord, range) {
+    activeRange = range;
 
-    const rawWord = spanEl.dataset.raw;
     popLemma.textContent = rawWord;
 
     const enc = encodeURIComponent(rawWord.toLowerCase());
@@ -817,11 +768,11 @@
     popTreccani.href = `https://www.treccani.it/vocabolario/${enc}`;
 
     popup.classList.add('visible');
-    positionPopup(spanEl);
+    positionPopup(range);
   }
 
-  function positionPopup(spanEl) {
-    const rect   = spanEl.getBoundingClientRect();
+  function positionPopup(range) {
+    const rect   = range.getBoundingClientRect();
     const scrollY = window.scrollY;
     const scrollX = window.scrollX;
     const popH   = popup.offsetHeight;
@@ -845,20 +796,17 @@
 
   function hidePopup() {
     popup.classList.remove('visible');
-    if (activeSpan) {
-      activeSpan.classList.remove('active');
-      activeSpan = null;
-    }
+    activeRange = null;
   }
 
-  // ── Word Click Handler ─────────────────────────────────────────────────────
+  // ── Word Double-click Handler ──────────────────────────────────────────────
 
-  textBody.addEventListener('click', e => {
-    if (!e.target.matches('.word')) return;
-    const span = e.target;
-    if (span === activeSpan) { hidePopup(); return; }
-    showPopup(span);
-    e.stopPropagation();
+  textBody.addEventListener('dblclick', () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+    const rawWord = sel.toString().trim();
+    if (!rawWord || !/[A-Za-z\u00C0-\u00FF]/.test(rawWord)) return;
+    showPopup(rawWord, sel.getRangeAt(0));
   });
 
   document.addEventListener('click', e => {
@@ -872,11 +820,11 @@
   });
 
   window.addEventListener('scroll', () => {
-    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+    if (activeRange && popup.classList.contains('visible')) positionPopup(activeRange);
   }, { passive: true });
 
   window.addEventListener('resize', () => {
-    if (activeSpan && popup.classList.contains('visible')) positionPopup(activeSpan);
+    if (activeRange && popup.classList.contains('visible')) positionPopup(activeRange);
   });
 
   // ── Upload / Drop Handling ─────────────────────────────────────────────────
