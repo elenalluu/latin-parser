@@ -82,8 +82,28 @@
       color: #fff;
     }
 
+    #toc-btn {
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--link);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+      display: none;
+    }
+
+    #toc-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
     #chapter-nav {
-      display: flex;
+      display: none;
       gap: 0.5rem;
       flex-wrap: wrap;
       margin-top: 0.7rem;
@@ -318,6 +338,7 @@
 <header id="site-header">
   <div id="header-top">
     <h1 id="doc-title">Italian Reader</h1>
+    <button id="toc-btn" aria-expanded="false">Sezioni &#9660;</button>
     <button id="new-doc-btn">Nuovo documento</button>
   </div>
   <div class="meta" id="doc-meta">Trascina un documento qui &bull; Clicca su qualsiasi parola per il dizionario</div>
@@ -667,6 +688,7 @@
   const docTitleEl  = document.getElementById('doc-title');
   const docMeta     = document.getElementById('doc-meta');
   const newDocBtn   = document.getElementById('new-doc-btn');
+  const tocBtn      = document.getElementById('toc-btn');
   const dropArea    = document.getElementById('drop-area');
   const fileInput   = document.getElementById('file-input');
   const browseBtn   = document.getElementById('browse-btn');
@@ -715,7 +737,8 @@
     docTitleEl.textContent = textData.title || 'Documento italiano';
     docMeta.textContent = 'Clicca su qualsiasi parola per la definizione \u2022 Wiktionary · Treccani';
     newDocBtn.style.display = 'inline-block';
-    chapterNav.style.display = chapters.length <= 1 ? 'none' : '';
+    tocBtn.style.display = chapters.length <= 1 ? 'none' : 'inline-block';
+    chapterNav.style.display = 'none';
   }
 
   // ── Scroll Spy ─────────────────────────────────────────────────────────────
@@ -815,6 +838,13 @@
 
   popClose.addEventListener('click', hidePopup);
 
+  tocBtn.addEventListener('click', () => {
+    const open = chapterNav.style.display === 'flex';
+    chapterNav.style.display = open ? 'none' : 'flex';
+    tocBtn.setAttribute('aria-expanded', String(!open));
+    tocBtn.textContent = open ? 'Sezioni \u25BC' : 'Sezioni \u25B2';
+  });
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') hidePopup();
   });
@@ -884,6 +914,10 @@
     docTitleEl.textContent = 'Italian Reader';
     docMeta.textContent = 'Trascina un documento qui \u2022 Clicca su qualsiasi parola per il dizionario';
     newDocBtn.style.display = 'none';
+    tocBtn.style.display = 'none';
+    tocBtn.textContent = 'Sezioni \u25BC';
+    tocBtn.setAttribute('aria-expanded', 'false');
+    chapterNav.style.display = 'none';
     uploadError.textContent = '';
   });
 
