@@ -795,26 +795,11 @@
   }
 
   function positionPopup(range) {
-    const rect   = range.getBoundingClientRect();
-    const scrollY = window.scrollY;
-    const scrollX = window.scrollX;
-    const popH   = popup.offsetHeight;
-    const popW   = popup.offsetWidth;
-    const vw     = window.innerWidth;
-    const vh     = window.innerHeight;
-    const GAP    = 8;
-
-    let top  = rect.bottom + scrollY + GAP;
-    let left = rect.left + scrollX;
-
-    if (rect.bottom + GAP + popH > vh) {
-      top = rect.top + scrollY - popH - GAP;
-    }
-
-    left = Math.max(scrollX + 8, Math.min(left, scrollX + vw - popW - 8));
-
-    popup.style.top  = top  + 'px';
-    popup.style.left = left + 'px';
+    const GAP = 12;
+    const popH = popup.offsetHeight;
+    const popW = popup.offsetWidth;
+    popup.style.top  = (window.scrollY + window.innerHeight - popH - GAP) + 'px';
+    popup.style.left = (window.scrollX + window.innerWidth  - popW - GAP) + 'px';
   }
 
   function hidePopup() {
